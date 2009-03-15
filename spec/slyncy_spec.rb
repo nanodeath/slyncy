@@ -2,79 +2,96 @@
 require File.join(File.dirname(__FILE__), %w[spec_helper])
 
 describe Slyncy do
-    include Slyncy
-
-    it "should allow slow calls" do
-      x = slyncy do
-        sleep 0.1
-        3
+  include Slyncy
+  before(:each) do
+    @user = mock("User")
+    @user.should_receive(:get_pictures).any_number_of_times.with(an_instance_of(Fixnum)).and_return {|a| sleep a/100; ['picture'] * a}
+    @user.should_receive(:get_picture).any_number_of_times.with(an_instance_of(Fixnum)).and_return do |a|
+      if a < 10
+        'picture'
+      else
+        raise "No such picture."
       end
-      sleep 0.01
-      x.done?.should be_true
-      x.get.should == 3
+    end
+  end
 
-      x.exception?.should be_false
-      x.exception.should be_nil
+  describe Slyncy::SlyncyCall do
+    it "should allow slow calls" do
+      call = slyncy { @user.get_pictures(10) }
+      3.times do
+        @user.get_pictures(10)
+      end
+
+      call.done?.should be_true
+      pictures = call.get
+      pictures.length.should == 10
     end
 
-    it "should allow slow array calls" do
-      x = slyncy_array
-      x << slyncy do
-        sleep 0.1
-        1
-      end
-      x << slyncy do
-        sleep 0.2
-        2
-      end
-      sleep 0.01
-      x.done?.should be_true
-      res = x.get
-      res.first.should == 1
-      res.last.should == 2
-
-      x.exception?.should be_false
+    it "shouldn't be mandatory to check done?" do
+      call = slyncy { @user.get_pictures(10) }
+      pictures = call.get
+      pictures.length.should == 10
     end
 
     it "should allow timeouts for slow calls" do
-      x = slyncy do
-        sleep 3
-        2
-      end
-      sleep 0.01
-      x.done?(0.2).should be_false
+      call = slyncy { @user.get_pictures(1000)}
+      call.done?(0.2).should be_false
 
-      x.exception?.should be_true
-      x.exception.class.should == Slyncy::TimeoutException
+      call.timed_out?.should be_true
+    end
+
+    it "shouldn't hit high timeouts for slow calls" do
+      call = slyncy { @user.get_pictures(10)}
+      call.done?(1).should be_true
+
+      call.timed_out?.should be_false
+      call.exception.should be_nil
     end
 
     it "should trap exceptions gracefully" do
-      x = slyncy do
-        raise "exception"
-      end
-      x.done?.should be_false
-      x.exception?.should be_true
-      x.exception.class.should == RuntimeError
-      x.exception.message.should == "exception"
+      call = slyncy { @user.get_picture(20) }
+      call.done?.should be_false
+      call.exception.class.should == RuntimeError
+      call.exception.message.should == "No such picture."
     end
 
-    it "should trap exceptions in array calls gracefully" do
-      x = slyncy_array
-      x << slyncy do
-        3
-      end
-      x << slyncy do
-        raise "exception"
-      end
-      x.done?.should be_false
-      res = x.get
-      res.first.should == 3
-      res.last.should be_nil
+  end
 
-      x.exception?.should be_true
-      x.exceptions.first.should be_nil
-      x.exceptions.last.class.should == RuntimeError
+  describe Slyncy::SlyncyCallBatch do
+    it "should allow slow batch calls" do
+      picture_batch = slyncy_batch
+      picture_batch << slyncy { @user.get_pictures(10) }
+      picture_batch << slyncy { @user.get_pictures(20) }
+
+      picture_batch.done?.should be_true
+      picture_batch.first.get.length.should == 10
+      picture_batch.last.get.length.should == 20
     end
+
+    it "should let me start processing elements of batch calls immediately" do
+      picture_batch = slyncy_batch
+      picture_batch << slyncy { @user.get_pictures(10) }
+      picture_batch << slyncy { @user.get_pictures(20) }
+
+      # not checking done here
+      picture_batch.first.get.length.should == 10
+      picture_batch.last.get.length.should == 20
+    end
+  end
+
+  it "should trap exceptions in array calls gracefully" do
+    picture_batch = slyncy_batch
+    picture_batch << slyncy { @user.get_picture(5) }
+    picture_batch << slyncy { @user.get_picture(20) }
+    
+    picture_batch.done?.should be_false
+    picture_batch.first.get.should == 'picture'
+    lambda { picture_batch.last.get }.should raise_error(RuntimeError)
+
+    picture_batch.exception?.should be_true
+    picture_batch.exceptions.first.should be_nil
+    picture_batch.exceptions.last.class.should == RuntimeError
+  end
 end
 
 # EOF
