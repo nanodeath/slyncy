@@ -18,9 +18,6 @@ describe Slyncy do
   describe Slyncy::SlyncyCall do
     it "should allow slow calls" do
       call = slyncy { @user.get_pictures(10) }
-      3.times do
-        @user.get_pictures(10)
-      end
 
       call.done?.should be_true
       pictures = call.get
@@ -51,7 +48,7 @@ describe Slyncy do
     it "should trap exceptions gracefully" do
       call = slyncy { @user.get_picture(20) }
       call.done?.should be_false
-      call.exception.class.should == RuntimeError
+      call.exception.should be_a(RuntimeError)
       call.exception.message.should == "No such picture."
     end
 
@@ -90,7 +87,7 @@ describe Slyncy do
 
     picture_batch.exception?.should be_true
     picture_batch.exceptions.first.should be_nil
-    picture_batch.exceptions.last.class.should == RuntimeError
+    picture_batch.exceptions.last.should be_a(RuntimeError)
   end
 end
 
