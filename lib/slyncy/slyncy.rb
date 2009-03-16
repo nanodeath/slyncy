@@ -3,6 +3,9 @@ module Slyncy
     SlyncyCall.new(&block)
   end
 
+  class << self
+    attr_writer :job_processor
+  end
   def self.job_processor
     @job_processor ||= options[:job_processor].new
   end

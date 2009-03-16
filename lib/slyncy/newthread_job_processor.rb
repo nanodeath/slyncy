@@ -7,10 +7,6 @@ module Slyncy
       @job_class = NewthreadJobProcessor::Job
     end
 
-    def accept(&job)
-      super
-    end
-
     class Job < JobProcessor::Job
       def initialize(&block)
         @thread = Thread.new(&block)
