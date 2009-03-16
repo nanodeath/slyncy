@@ -15,31 +15,21 @@ describe Slyncy do
     end
   end
 
-  describe Slyncy::SlyncyCall do
-    it "should allow calls" do
-      call = slyncy { @user.get_pictures(10) }
-
-      pictures = call.get
-      pictures.length.should == 10
+  # shared examples in the spec helper
+  describe Slyncy::JITJobProcessor do
+    before(:all) do
+      Slyncy.options[:job_processor] = Slyncy::JITJobProcessor
     end
 
-    it "should allow timeouts" do
-      call = slyncy { @user.get_pictures(100) }
+    it_should_behave_like "a job processor"
+  end
 
-      lambda { pictures = call.get(0.1) }.should raise_error(Slyncy::TimeoutException)
+  describe Slyncy::NewthreadJobProcessor do
+    before(:each) do
+      Slyncy.options[:job_processor] = Slyncy::NewthreadJobProcessor
     end
 
-    it "shouldn't hit high timeouts" do
-      call = slyncy { @user.get_pictures(10) }
-
-      lambda { pictures = call.get(1) }.should_not raise_error(Slyncy::TimeoutException)
-    end
-
-    it "should propagate exceptions" do
-      call = slyncy { @user.get_picture(20) }
-
-      lambda { call.get }.should raise_error(RuntimeError)
-    end
+    it_should_behave_like "a job processor"
   end
 end
 
