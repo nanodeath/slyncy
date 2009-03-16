@@ -16,78 +16,66 @@ describe Slyncy do
   end
 
   describe Slyncy::SlyncyCall do
-    it "should allow slow calls" do
+    it "should allow calls" do
       call = slyncy { @user.get_pictures(10) }
 
-      call.done?.should be_true
       pictures = call.get
       pictures.length.should == 10
     end
 
     it "shouldn't be mandatory to check done?" do
       call = slyncy { @user.get_pictures(10) }
+      
       pictures = call.get
       pictures.length.should == 10
     end
 
-    it "should allow timeouts for slow calls" do
-      call = slyncy { @user.get_pictures(1000)}
-      call.done?(0.2).should be_false
+    it "should allow timeouts" do
+      call = slyncy { @user.get_pictures(100) }
 
-      call.timed_out?.should be_true
+      lambda { pictures = call.get(0.1) }.should raise_error(Slyncy::TimeoutException)
     end
 
-    it "shouldn't hit high timeouts for slow calls" do
+    it "shouldn't hit high timeouts" do
       call = slyncy { @user.get_pictures(10)}
-      call.done?(1).should be_true
 
-      call.timed_out?.should be_false
-      call.exception.should be_nil
+      lambda { pictures = call.get(1) }.should_not raise_error(Slyncy::TimeoutException)
     end
 
-    it "should trap exceptions gracefully" do
+    it "should propagate exceptions" do
       call = slyncy { @user.get_picture(20) }
-      call.done?.should be_false
-      call.exception.should be_a(RuntimeError)
-      call.exception.message.should == "No such picture."
-    end
 
+      lambda { call.get }.should raise_error(RuntimeError)
+    end
   end
 
-  describe Slyncy::SlyncyCallBatch do
-    it "should allow slow batch calls" do
-      picture_batch = slyncy_batch
+  describe Array do
+    it "should allow batch calls" do
+      picture_batch = []
       picture_batch << slyncy { @user.get_pictures(10) }
       picture_batch << slyncy { @user.get_pictures(20) }
 
-      picture_batch.done?.should be_true
       picture_batch.first.get.length.should == 10
       picture_batch.last.get.length.should == 20
     end
 
-    it "should let me start processing elements of batch calls immediately" do
-      picture_batch = slyncy_batch
-      picture_batch << slyncy { @user.get_pictures(10) }
-      picture_batch << slyncy { @user.get_pictures(20) }
+    it "should propagate exceptions in batch calls" do
+      picture_batch = []
+      picture_batch << slyncy { @user.get_picture(5) }
+      picture_batch << slyncy { @user.get_picture(20) }
 
-      # not checking done here
-      picture_batch.first.get.length.should == 10
-      picture_batch.last.get.length.should == 20
+      picture_batch.first.get.should == 'picture'
+      lambda { picture_batch.last.get }.should raise_error(RuntimeError)
     end
-  end
 
-  it "should trap exceptions in array calls gracefully" do
-    picture_batch = slyncy_batch
-    picture_batch << slyncy { @user.get_picture(5) }
-    picture_batch << slyncy { @user.get_picture(20) }
-    
-    picture_batch.done?.should be_false
-    picture_batch.first.get.should == 'picture'
-    lambda { picture_batch.last.get }.should raise_error(RuntimeError)
+    it "should allow timeouts in batch calls" do
+      picture_batch = []
+      picture_batch << slyncy { @user.get_pictures(10) }
+      picture_batch << slyncy { @user.get_pictures(100) }
 
-    picture_batch.exception?.should be_true
-    picture_batch.exceptions.first.should be_nil
-    picture_batch.exceptions.last.should be_a(RuntimeError)
+      picture_batch.first.get(0.1).length.should == 10
+      lambda { picture_batch.last.get(0.1) }.should raise_error(Slyncy::TimeoutException)
+    end
   end
 end
 
