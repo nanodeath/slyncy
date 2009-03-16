@@ -13,7 +13,25 @@ as you know what calls you need and catching up with the results later.
 
 == SYNOPSIS:
 
-  FIXME (code sample of usage)
+  You can defer a job either with a timeout or without.
+
+  Without a timeout:
+  the_job = slyncy { 5 }
+  x = the_job.get # this will block until the_job is complete
+
+  With a timeout:
+  the_job = slyncy { 6 }
+  x = the_job.get(3) # this will wait at most 3 seconds.
+                     # after 3 seconds, a Slyncy::TimeoutException will be
+                     # thrown
+  
+  With an exception in the job:
+  the_job = slyncy { raise "error" }
+  begin
+    x = the_job.get
+  rescue
+    puts "an error occurred!"
+  end
 
 == REQUIREMENTS:
 
@@ -22,6 +40,11 @@ as you know what calls you need and catching up with the results later.
 == INSTALL:
 
 * FIXME (sudo gem install, anything else)
+
+== TODO:
+
+* Add a JobProcessor based off of a thread pool.  Currently only available
+  processor is JITJobProcessor.
 
 == LICENSE:
 
