@@ -1,7 +1,10 @@
 require File.join(File.dirname(__FILE__), %w[job_processor])
 
 module Slyncy
+  # The NewthreadJobProcessor is asynchronous, but really dumb.  It just spins
+  # up a thread whenever a new job is handed to it.
   class NewthreadJobProcessor < JobProcessor
+    # :stopdoc:
     def initialize
       super
       @job_class = NewthreadJobProcessor::Job
@@ -33,5 +36,6 @@ module Slyncy
         nil
       end
     end
+    # :startdoc:
   end
 end

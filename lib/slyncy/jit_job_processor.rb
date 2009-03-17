@@ -1,7 +1,10 @@
 require File.join(File.dirname(__FILE__), %w[job_processor])
 
 module Slyncy
+  # The JITJobProcessor is a synchronous JobProcessor.  Jobs don't actually execute
+  # until their values are retrieved.  It's more of an example class.
   class JITJobProcessor < JobProcessor
+    # :stopdoc:
     def initialize
       super
       @job_class = JITJobProcessor::Job
@@ -29,5 +32,6 @@ module Slyncy
         nil
       end
     end
+    # :startdoc:
   end
 end
